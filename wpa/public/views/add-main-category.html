@@ -1,0 +1,158 @@
+<h2>Add Main Category</h2>
+<hr />
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="w-100" id="result"></div>
+                <form id="main-category-form">
+                    <div class="form-group">
+                        <label for="title">Category Name</label>
+                        <input type="text" class="form-control" id="category-name">
+                        <div class="invalid-feedback">
+                            Please enter the category name!
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="category-thumbnail">Category Thumbnail</label>
+                        <input type="file" class="form-control" id="category-thumbnail" />
+                        <div class="invalid-feedback">
+                            Please choose a valid image!
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="progress">
+                            <div class="progress-bar" id="progress" style="width:0%">0%</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" id="btn-save" onclick="saveCategory();" class="btn btn-primary">Save
+                            Category</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div id="image_demo"
+                    style="background-image:url('imgs/placeholder.png');background-position: center; background-repeat: no-repeat;max-height:450px">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/croppie.js"></script>
+<script>
+    $image_crop = $('#image_demo').croppie({
+        viewport: {
+            width: 520,
+            height: 292,
+            type: 'square'
+        },
+        boundary: {
+            width: 600,
+            height: 400
+        },
+        showZoomer: true,
+        enableExif: true,
+        enableOrientation: true
+    });
+
+    $('#category-thumbnail').on('change', function () {
+        if ($(this).get(0).files.length === 0) {
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (event) {
+            $image_crop.croppie('bind', {
+                url: event.target.result
+            }).then(function () {
+
+            });
+        }
+        reader.readAsDataURL(this.files[0]);
+    });
+
+    function saveCategory() {
+        saveBtnStatus(false);
+        $("#category-name").removeClass("is-invalid");
+        $("#category-thumbnail").removeClass("is-invalid");
+
+        var categoryName = $('#category-name').val();
+        var categoryThumbnail = $("#category-thumbnail").prop("files")[0];
+        if (categoryName.trim() == "") {
+            $("#category-name").addClass("is-invalid");
+            saveBtnStatus(true);
+            return;
+        }
+        if (!categoryThumbnail) {
+            $("#category-thumbnail").addClass("is-invalid");
+            saveBtnStatus(true);
+            return;
+        }
+
+        $image_crop.croppie('result', {
+            type: 'canvas',
+            size: 'viewport'
+        }).then(function (response) {
+            var imagename = new Date().getTime();
+            var storageRef = firebase.storage().ref(categoryName.replace(/ /g, '') + "/" + imagename + ".png");
+            var uploadTask = storageRef.putString(response, 'data_url', {
+                contentType: 'image/png'
+            });
+
+            uploadTask.on("state_changed",
+                function progress(snapshot) {
+                    var percentage = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    $("#progress").html(Math.round(percentage) + "%");
+                    $("#progress").attr("style", "width: " + percentage + "%");
+                },
+
+                function error(err) {
+                    saveBtnStatus(true);
+                },
+
+                function complete() {
+                    uploadTask.snapshot.ref.getDownloadURL().then(function (downloadURL) {
+                        var database = firebase.database().ref("Categories/Main-Categories").child(
+                            categoryName);
+                        var image = {
+                            "displayName": categoryName,
+                            "thumbnail": downloadURL,
+                            "position": 0,
+                            "status": true
+                        };
+                        database.set(image, function (err) {
+                            $('#image_demo').removeClass('ready');
+                            resetForm();
+                            saveBtnStatus(true);
+                        });
+
+                    });
+                }
+            );
+        });
+    }
+
+    function saveBtnStatus(status) {
+        if (status == true) {
+            $('#btn-save').removeClass('disabled');
+            $('#btn-save').text('Save Category');
+        } else {
+            $('#btn-save').addClass('disabled');
+            $('#btn-save').text('Please Wait...');
+        }
+    }
+
+    function resetForm() {
+        $("#main-category-form")[0].reset();
+        $("#progress").html("Completed");
+        $("#result").attr("class", "alert alert-success");
+        $("#result").html("Image Uploaded Successfully");
+    }
+
+</script>

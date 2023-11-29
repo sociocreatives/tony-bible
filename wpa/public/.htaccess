@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+    # Enable cross domain access control
+    SetEnvIf Origin "^http(s)?://(.+\.)?(domain_one\.com|domain_two\.net)$" REQUEST_ORIGIN=$0
+    Header always set Access-Control-Allow-Origin %{REQUEST_ORIGIN}e env=REQUEST_ORIGIN
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers: Authorization
+
+    # Force to request 200 for options
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule .* / [R=200,L]
+</IfModule>

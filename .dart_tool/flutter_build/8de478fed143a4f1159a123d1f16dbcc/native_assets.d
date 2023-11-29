@@ -1,0 +1,1 @@
+ /Users/ovasis/Desktop/bibleartwallpaperhd\ 2/.dart_tool/flutter_build/8de478fed143a4f1159a123d1f16dbcc/native_assets.yaml: 

@@ -1,0 +1,116 @@
+<div class="row w-100 m-3">
+	<div class="card">
+		<div class="card-header">
+			<h5 class="card-title">App Activity</h5>
+		</div>
+		<div class="card-body">
+			<table class="table table-light" width="100%" id="activityTable">
+				<thead>
+					<tr>
+						<th>Date</th>
+						<th>App Launches</th>
+						<th>Users</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
+	</div>
+</div>
+<div class="row w-100 m-3">
+	<div class="card">
+		<div class="card-header">
+			<h5 class="card-title">Viewed Images</h5>
+		</div>
+		<div class="card-body">
+			<table class="table table-light" width="100%" id="viewsTable">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Main Category</th>
+						<th>Sub Category</th>
+						<th>Views</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
+	</div>
+</div>
+<script
+	src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"
+	type="text/javascript"
+></script>
+<script>
+	var list = [];
+	var viewsTable;
+	var activityTable;
+	$(document).ready(function () {
+		viewsTable = $("#viewsTable").DataTable();
+		activityTable = $("#activityTable").DataTable({
+			bAutoWidth: false,
+		});
+		loadActivityTable();
+		loadViewedImages();
+	});
+
+	function loadActivityTable() {
+		var activitiesRef = firebase.database().ref("activity");
+		activitiesRef.once("value").then((activities) => {
+			if (activities.exists()) {
+				var chList = [];
+				activities.forEach(function (activity) {
+					activity.forEach(function (users) {
+						if (chList.indexOf(users.val()) === -1) {
+							chList.push(users.val());
+						}
+					});
+
+					activityTable.row
+						.add([activity.key, activity.numChildren(), chList.length])
+						.draw(false);
+				});
+			}
+		});
+	}
+
+	function loadViewedImages() {
+		var wallpapersRef = firebase.database().ref("wallpapers");
+		wallpapersRef.once("value").then((mainCategories) => {
+			if (mainCategories.exists()) {
+				mainCategories.forEach(function (mainCategory) {
+					mainCategory.forEach(function (subCategories) {
+						subCategories.forEach(function (subCategory) {
+							if (subCategory.hasChild("views")) {
+								var subCatDisplayName;
+								var wpList;
+								firebase
+									.database()
+									.ref("Categories/Sub-Categories/" + subCategories.key)
+									.once("value")
+									.then((getSubCategory) => {
+										subCatDisplayName = getSubCategory.val().displayName;
+										console.log(subCatDisplayName);
+									})
+									.then(() => {
+										wpList = [
+											subCategory.val().title,
+											mainCategory.key,
+											subCatDisplayName,
+											subCategory.val().views,
+										];
+										list.push(wpList);
+									})
+									.then(() => {
+										viewsTable.row
+											.add([wpList[0], wpList[1], wpList[2], wpList[3]])
+											.draw(false);
+									});
+							}
+						});
+					});
+				});
+			}
+		});
+	}
+</script>

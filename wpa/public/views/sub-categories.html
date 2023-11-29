@@ -1,0 +1,449 @@
+<div class="row w-100 m-1">
+    <h4>Sub Categories</h4>
+    <ul class="list-inline ml-auto">
+        <li class="list-inline-item">
+            <a href="#add-sub-category" class="btn btn-primary" onclick="switchView('views/add-sub-category.html')">Add Sub Category</a>
+        </li>
+    </ul>
+</div>
+<div class="row" id="subCats">
+</div>        
+
+<!-- Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalHeader"></h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body" id="modalBody">
+           
+        </div>
+        <div class="modal-footer" id="modalFooter">
+            <input type="hidden" id="modalCategoryName">
+            <input type="hidden" id="modalInputType">
+            <input type="hidden" id="modalInputMethod">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" onclick="modalSaveChanges();" class="btn btn-primary">Save changes</button>
+        </div>
+      </div>
+    </div>
+</div>
+
+<script src="js/croppie.js"></script>
+<script>
+$(document).ready(function(){ 
+    loadSubCategories();
+
+    $(document).on('change', '[type=checkbox].hasNewImages', function(event) {
+        var categoryName = event.target.id;
+        categoryName = categoryName.replace("hasNewImages-", "");
+        var isChecked = $(this).prop('checked');        
+        firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+            hasNewImages:isChecked
+        }).then(function() {}).catch(function(error) {}); 
+    }); 
+    $(document).on('change', '[type=checkbox].isFree', function(event) {
+        var categoryName = event.target.id;
+        categoryName = categoryName.replace("isFree-", "");
+        var isChecked = $(this).prop('checked');        
+        firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+            isFree:isChecked
+        }).then(function() {}).catch(function(error) {}); 
+    });
+    $(document).on('change', '[type=checkbox].isNew', function(event) {
+        var categoryName = event.target.id;
+        categoryName = categoryName.replace("isNew-", "");
+        var isChecked = $(this).prop('checked');        
+        firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+            isNew:isChecked
+        }).then(function() {}).catch(function(error) {}); 
+    });
+});
+
+function loadSubCategories(){    
+    var mainCategoriesRef = firebase.database().ref("Categories/Main-Categories").orderByChild('position');  
+    mainCategoriesRef.on("value", function(mainCategories){
+        if(mainCategories.exists()){
+            var categorieshtml = '<div class="row w-100 m-1">'; 
+            var i=0;
+            mainCategories.forEach(function(mCategory){    
+                categorieshtml += '<div class="row w-100 m-2">';            
+                categorieshtml += '<div class="card w-100">';
+                categorieshtml += '<div class="card-header">';
+                categorieshtml += '<h4>'+mCategory.val().displayName+'</h4>';
+                categorieshtml += '</div>';
+                categorieshtml += '<div class="card-body">';
+                categorieshtml += '<div class="row w-100" id="x-'+i+'"></div>';
+                categorieshtml += '</div>';
+                categorieshtml += '</div>';
+                categorieshtml += '</div>';
+                insertSubCategories(mCategory.key,"x-"+i);
+                i++;
+            });            
+            $("#subCats").html(categorieshtml);
+        }else{
+            $("#subCats").html("<div class='w-100 text-center'>No Categories Found</div>");
+        }
+    });
+}
+
+function insertSubCategories(mainCategory,rowID){
+    var subCategoriesRef = firebase.database().ref("Categories/Sub-Categories");
+    subCategoriesRef.orderByChild("displayName").on("value", function(categories){
+        if(categories.exists()){
+            var subCategorieshtml = '';
+            categories.forEach(function(category){ 
+                if(mainCategory == category.val().mainCategory){
+                    var hasNewImages = "";
+                    var isFree = "";
+                    var isNew = "";
+                    var status = "Inactive";
+                    var statusColor = "danger"; 
+                    if(category.val().hasNewImages){hasNewImages = "checked";}
+                    if(category.val().isFree){isFree = "checked";}
+                    if(category.val().isNew){isNew = "checked";}
+                    if(category.val().status){status = "Active";statusColor="success";}   
+
+                    subCategorieshtml += '<div class="col-md-4">';
+                    subCategorieshtml += '<div class="card mb-4 box-shadow">';
+                    subCategorieshtml += '<a href="'+category.val().thumbnail+'" title="'+category.key+'">';
+                    subCategorieshtml += '<img src="'+category.val().thumbnail+'" class="card-img-top" />';
+                    subCategorieshtml += '</a>';
+                    subCategorieshtml += '<div class="card-body">';
+                    subCategorieshtml += '<a href="#sub-categories" onclick="openEditSubCategoryName(\''+category.key+'\',\''+category.val().displayName+'\');">'; 
+                    subCategorieshtml += category.val().displayName;
+                    subCategorieshtml += "</a>"; 
+                    subCategorieshtml += "<hr>"; 
+                    subCategorieshtml += "Main Category: ";
+                    subCategorieshtml += '<a href="#sub-categories" onclick="openEditSubCategoryMainCategory(\''+category.key+'\');">';                 
+                    subCategorieshtml += category.val().mainCategory;
+                    subCategorieshtml += "</a>";
+                    subCategorieshtml += "<br>"; 
+                    subCategorieshtml += "Position: <span class='badge badge-primary'>"+category.val().position+"</span>"; 
+                    subCategorieshtml += "<br>"; 
+                    subCategorieshtml += "Status: <span class='badge badge-"+statusColor+"'>"+status+"</span>";
+                    subCategorieshtml += "<hr>"; 
+                    subCategorieshtml += "<small><label for='checkid'  style='word-wrap:break-word'><small>New Images</small> <input type='checkbox' class='hasNewImages' id='hasNewImages-"+category.key+"' style='vertical-align:middle;width:20px;height:20px;' "+hasNewImages+"/></label></small>";
+                    subCategorieshtml += "&nbsp"; 
+                    subCategorieshtml += "<small><label for='checkid'  style='word-wrap:break-word'><small>Is Free</small> <input type='checkbox' class='isFree' id='isFree-"+category.key+"' style='vertical-align:middle;width:20px;height:20px;' "+isFree+"/></label></small>";
+                    subCategorieshtml += "&nbsp"; 
+                    subCategorieshtml += "<small><label for='checkid'  style='word-wrap:break-word'><small>Is New</small> <input type='checkbox' class='isNew' id='isNew-"+category.key+"' style='vertical-align:middle;width:20px;height:20px;' "+isNew+"/></label></small>";
+                    subCategorieshtml += "<button type='button' onclick='editSubCategoryNewImages(\""+category.key+"\",\""+category.val().thumbnail+"\");' class='btn btn-primary btn-block btn-sm btn-flat m-1'>Edit Image</button>";
+                    subCategorieshtml += "<button type='button' onclick='editSubCategoryPosition(\""+category.key+"\",\""+category.val().position+"\");' class='btn btn-primary btn-block btn-sm btn-flat m-1'>Edit Position</button>";                    
+                    if(category.key != "Uncategorized"){
+                        subCategorieshtml += "<button type='button' onclick='editSubCategoryIsActive(\""+category.key+"\","+category.val().status+");' class='btn btn-secondary btn-block btn-sm btn-flat m-1'>Edit Status</button>";
+                        subCategorieshtml += "<button type='button' onclick='deleteSubCategory(\""+mainCategory+"\",\""+category.key+"\",\""+category.val().thumbnail+"\");' class='btn btn-danger btn-block btn-sm btn-flat m-1'>Delete</button>";
+                    }
+                    subCategorieshtml += '</div>';
+                    subCategorieshtml += '</div>';
+                    subCategorieshtml += '</div>';
+                }
+            });
+            $("#"+rowID).html(subCategorieshtml);
+            
+        }else{
+            $("#"+rowID).html("<div class='w-100 text-center'>No Categories Found</div>");
+        }
+    });
+}
+
+// Sub Categories
+function openEditSubCategoryName(key,currentName){
+    $('#modalHeader').html('Edit Sub Category Name');  
+    $('#modalCategoryName').val(key);  
+    $('#modalInputType').val('input');  
+    $('#modalInputMethod').val('openEditSubCategoryName');
+    $('#modalBody').css({ 'height': "100px" });   
+    $('#modalBody').html('<label for="modalInput" class="w-100">New Name: <input type="text" class="form-control" id="modalInputValue" value="'+currentName+'"></label>');
+    $('#editModal').modal('show');  
+}
+
+function openEditSubCategoryMainCategory(key){
+    var mainCategoryOptions = '<option value=""></option>';
+    var mainCategoriesRef = firebase.database().ref("Categories/Main-Categories");  
+    mainCategoriesRef.on("value", function(categories){
+        if(categories.exists()){
+            var categorieshtml = "";                      
+            categories.forEach(function(category){
+                mainCategoryOptions += '<option value="'+category.key+'">'+category.val().displayName+'</option>';
+            });
+        }
+        $('#modalHeader').html('Select Main Category');  
+        $('#modalCategoryName').val(key);  
+        $('#modalInputType').val('input');  
+        $('#modalInputMethod').val('openEditSubCategoryMainCategory');  
+        $('#modalBody').css({ 'height': "100px" }); 
+        $('#modalBody').html('<label for="modalInput" class="w-100">Main Categories: <select class="form-control" id="modalInputValue">'+mainCategoryOptions+'</select></label>');
+        $('#editModal').modal('show'); 
+    });
+}
+
+function editSubCategoryNewImages(key,imageUrl){
+    $('#modalHeader').html('Edit Sub Category Image'); 
+    $('#modalCategoryName').val(key);  
+    $('#modalInputType').val(imageUrl);  
+    $('#modalInputMethod').val('editSubCategoryNewImages');
+    $('#modalBody').css({ 'height': "600px" });   
+    $('#modalBody').html('<div class="form-group"><label for="modalInput" class="w-100">New Image: <input type="file" class="form-control" id="modalInput"></label></div> <div id="croppie-view" class="mb-5 w-100" style="background-image:url(\'imgs/placeholder.png\');background-position: center; background-repeat: no-repeat;max-height:200px"></div>');
+    $('#editModal').modal('show');
+
+    $image_crop = $('#croppie-view').croppie({
+        viewport: {
+            width:256,
+            height:320,
+            type:'square'
+        },
+        boundary:{
+            width:400,
+            height:400
+        },
+        showZoomer: true,
+        enableExif: true,
+        enableOrientation: true
+    });
+
+    $('#modalInput').on('change', function(){
+        if($(this).get(0).files.length === 0){
+            return;
+        }            
+        var reader = new FileReader();
+        reader.onload = function (event) {
+            $image_crop.croppie('bind', {
+                url: event.target.result
+            }).then(function(){
+                
+            });
+        }
+        reader.readAsDataURL(this.files[0]);
+    });
+}
+
+function editSubCategoryPosition(categoryName,currentValue){
+    $('#modalHeader').html('Edit Sub Category Position');  
+    $('#modalCategoryName').val(categoryName);  
+    $('#modalInputType').val('input');  
+    $('#modalInputMethod').val('editSubCategoryPosition');  
+    $('#modalBody').css({ 'height': "100px" });   
+    $('#modalBody').html('<label for="modalInput" class="w-100">New Value: <input type="number" class="form-control" id="modalInputValue" value="'+currentValue+'"></label>');
+    $('#editModal').modal('show');    
+}
+
+function editSubCategoryIsActive(categoryName,currentStatus){
+    var isChecked = "";
+    if(currentStatus){isChecked = "checked";}
+    $('#modalHeader').html('Edit Sub Category Status');  
+    $('#modalCategoryName').val(categoryName);  
+    $('#modalInputType').val('input');  
+    $('#modalInputMethod').val('editSubCategoryIsActive'); 
+    $('#modalBody').css({ 'height': "100px" });    
+    $('#modalBody').html('<form><div class="form-group">Is Active: <input type="checkbox"  id="modalInputValue" s style="vertical-align:middle;" '+isChecked+'></div></form>');
+    $('#editModal').modal('show'); 
+}
+
+function deleteSubCategory(mainCategory,categoryName,imageUrl){ 
+    var stCat = categoryName.replace(/\s/g,'');
+    var answer = window.confirm("Are you sure you want to delete "+categoryName+" Category?")
+    if (answer) {  
+        var storageRef = firebase.storage().refFromURL(imageURL); 
+        storageRef.getDownloadURL()
+        .then(function(){
+            storageRef.delete();
+            deleteSubData(firebase,mainCategory,categoryName);
+        })
+        .catch(function(error){
+            deleteSubData(firebase,mainCategory,categoryName);
+            console.log("file not found :"+error);
+        });
+    }
+}
+
+function deleteSubData(firebase,mainCategory,categoryName){
+    firebase.database().ref("Categories/Sub-Categories").child(categoryName).remove()
+    .then(function(){
+        var wallpaperRef = firebase.database().ref("wallpapers").child(mainCategory).child(categoryName);
+        wallpaperRef.on("value", function(wallpapers){
+            if(wallpapers.exists()){
+                wallpapers.forEach(function(wallpaper){ 
+                    var oldRef = firebase.database().ref("wallpapers").child(mainCategory).child(categoryName).child(wallpaper.key);
+                    oldRef.on("value", function(oldWallpaperDetails){
+                        var hash = {};
+                        oldWallpaperDetails.forEach(function(oldWallpaperDetail){
+                            hash[oldWallpaperDetail.key] = oldWallpaperDetail.val();
+                        });
+                        var newRef = firebase.database().ref("wallpapers").child("Uncategorized").child("Uncategorized").child(wallpaper.key);
+                        newRef.set(hash);
+                        oldRef.remove();
+                    });
+                });
+            }
+        });
+    })
+    .catch(function(error){
+        console.log("deleteSubData >>"+error);
+    });
+}
+
+// move image
+function moveFirebaseFile(imageUrl,subCategoryName) {
+    let oldRef = firebase.storage().refFromURL(imageUrl);    
+    fetch(imageUrl).then(htmlReturn => {
+        let fileArray = new Uint8Array();
+        const reader = htmlReturn.body.getReader();
+        reader.read().then(function appendStreamChunk({ done, value }) {
+            if (value) {
+                fileArray = mergeTypedArrays(fileArray, value);
+            }
+            if (done) {
+                return fileArray;
+            } else {
+                return reader.read().then(appendStreamChunk);
+            }
+        }).then(file => {
+            var imagename = new Date().getTime(); 
+            var storageRef = firebase.storage().ref("Uncategorized/" + imagename + ".png");
+            var uploadTask = storageRef.put(file,{contentType:'image/png'});
+            uploadTask.on("state_changed", 
+                function progress(snapshot){},
+                function error(err){},
+                function complete(){
+                    uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+                        firebase.database().ref("Categories/Sub-Categories").child(subCategoryName).update({
+                            thumbnail:downloadURL
+                        }).then(function() {
+                            //
+                        }).catch(function(error) {
+                            //
+                            console.log("Remove failed: " + error.message);
+                        });
+
+                        oldRef.delete().then(function() {}).catch(function(error) {
+                            console.log("Remove failed: " + error.message);
+                        });                           
+                    }); 
+                }
+            );
+        });
+    });
+}
+
+function mergeTypedArrays(a, b) {
+    if(!a && !b) throw 'Please specify valid arguments for parameters a and b.'; 
+    if(!b || b.length === 0) return a;
+    if(!a || a.length === 0) return b;
+    if(Object.prototype.toString.call(a) !== Object.prototype.toString.call(b))
+        throw 'The types of the two arguments passed for parameters a and b do not match.';
+
+    var c = new a.constructor(a.length + b.length);
+    c.set(a);
+    c.set(b, a.length);
+
+    return c;
+}
+
+// save changes
+function modalSaveChanges(){
+    
+    var categoryName = $('#modalCategoryName').val();
+    var inputType = $('#modalInputType').val();
+    var inputMethod = $('#modalInputMethod').val();
+    switch (inputMethod) {
+        case "openEditSubCategoryName":
+            var inputValue = $('#modalInputValue').val();
+            updateSubCategoryName(categoryName,inputValue);
+            break; 
+        case "openEditSubCategoryMainCategory":
+            var inputValue = $('#modalInputValue :selected').val();
+            updateSubCategoryMainCategory(categoryName,inputValue);
+            break;
+        case "editSubCategoryNewImages":
+            $image_crop.croppie('result', {
+                type: 'canvas',
+                size: 'viewport'
+            }).then(function(response){
+                updateSubCategoryImage(categoryName,inputType,response);
+            });
+            break;
+        case "editSubCategoryPosition":
+            var inputValue = parseInt($('#modalInputValue').val())
+            if(inputValue == null || inputValue== undefined){
+                alert("Enter a value!");
+            }else{
+                if(Number.isInteger(inputValue)){ 
+                    updateSubCategoryPosition(categoryName,inputValue);
+                }else{
+                    alert("Only use numbers!");
+                } 
+            }  
+            break;
+        case "editSubCategoryIsActive":
+            var isChecked = $('#modalInputValue').is(":checked");
+            updateSubCategoryStatus(categoryName,isChecked);
+            break;        
+        default:            
+    }
+}
+
+function updateSubCategoryName(categoryName,inputValue){
+    firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+        displayName:inputValue
+    }).then(function() {
+        $('#editModal').modal('hide');
+    }).catch(function(error) {
+        $('#editModal').modal('hide');
+        console.log("Remove failed: " + error.message);
+    });
+}
+
+function updateSubCategoryMainCategory(categoryName,inputValue){
+    firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+        mainCategory:inputValue
+    }).then(function() {
+        $('#editModal').modal('hide');
+    }).catch(function(error) {
+        $('#editModal').modal('hide');
+        console.log("Remove failed: " + error.message);
+    });
+}
+
+function updateSubCategoryImage(category,imageUrl,image){
+    var storageRef = firebase.storage().refFromURL(imageUrl);                
+    var uploadTask = storageRef.putString(image, 'data_url', {contentType:'image/png'});
+    uploadTask.on("state_changed", 
+        function complete(){
+            uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+                var database = firebase.database()
+                .ref("Categories/Sub-Categories")
+                .child(category)
+                .update({thumbnail:downloadURL});
+                $('#editModal').modal('hide');
+            }); 
+        }
+    );
+}
+
+function updateSubCategoryPosition(categoryName,inputValue){
+    firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+        position:inputValue
+    }).then(function() {
+        $('#editModal').modal('hide');
+    }).catch(function(error) {
+        $('#editModal').modal('hide');
+        console.log("Remove failed: " + error.message);
+    }); 
+}
+
+function updateSubCategoryStatus(categoryName,inputValue){
+    firebase.database().ref("Categories/Sub-Categories").child(categoryName).update({
+        status:inputValue
+    }).then(function() {
+        $('#editModal').modal('hide');
+    }).catch(function(error) {
+        $('#editModal').modal('hide');
+        console.log("Remove failed: " + error.message);
+    });
+}
+</script>

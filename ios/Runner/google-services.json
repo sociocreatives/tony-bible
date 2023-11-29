@@ -1,0 +1,65 @@
+{
+  "project_info": {
+    "project_number": "803780061245",
+    "firebase_url": "https://bible-art-wallpaper-hd.firebaseio.com",
+    "project_id": "bible-art-wallpaper-hd",
+    "storage_bucket": "bible-art-wallpaper-hd.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803780061245:android:cd4dbf829c2c9a6c3c2254",
+        "android_client_info": {
+          "package_name": "com.gme.bibleartwallpaperhd"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "803780061245-j2qhlv6g67u2cq56uo9kt0fc4113po6i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gme.bibleartwallpaperhd",
+            "certificate_hash": "0d56509f6c5a083bb38f23e23c997c5fdf58b4fc"
+          }
+        },
+        {
+          "client_id": "803780061245-psebu2lnu0ghnjrnumke1kn6q1iae65b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gme.bibleartwallpaperhd",
+            "certificate_hash": "b50b9fbc94a9819886892e79c72dbdb04fd559bd"
+          }
+        },
+        {
+          "client_id": "803780061245-pvu70gbqrm17v6qmkiibjep8f16g2rc6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIrHgg-6ga3bDVE33xbhskpKbeAlXx7aI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "803780061245-02el9n0qcfu4e7ac61luo21mok84nu36.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "803780061245-3rifgsf7v2qdf2p7jot0jeguhp4nemgc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.gme.bibleartwallpaperhd",
+                "app_store_id": "1541674527"
+              }
+            }
+          ]
+        }
+      },
+      "admob_app_id": "ca-app-pub-2295969720544909~6760139185"
+    }
+  ],
+  "configuration_version": "1"
+}

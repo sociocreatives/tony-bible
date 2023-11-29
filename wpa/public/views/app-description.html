@@ -1,0 +1,42 @@
+<div class="row w-100 m-1">
+    <h4>App Description</h4>
+</div>
+<div class="container">
+    <form>
+        <div class="form-group">
+            <label for="appDescription"></label>
+            <textarea id="appDescription" class="form-control" cols="30" rows="10"></textarea>
+        </div>
+        <div class="form-group">
+            <button type="button" class="btn btn-primary" id="saveDescription">Please Wait...</button>
+        </div>
+    </form> 
+</div>
+<script src="//cdn.quilljs.com/1.3.6/quill.core.js"></script>
+<script>
+    $(document).ready(function(){
+        var ref = firebase.database().ref("App Description");
+        ref.on("value", function(items){
+            if(items.exists()){
+                $('#saveDescription').text("Update");
+                $('#appDescription').html(items.val().description);
+            }
+        });
+
+        $('#saveDescription').click(function(){
+            if($('#appDescription').val()==""){
+                alert("Description is required!");
+            }else{
+                $('#saveDescription').text("Please wait..");
+                firebase.database().ref("App Description").update({
+                    description: $('#appDescription').val()
+                }).then(function(){
+                    $('#saveDescription').text("Update");
+                });
+            }
+        });
+
+        var editor = new Quill('#appDescription');
+
+    });
+</script>

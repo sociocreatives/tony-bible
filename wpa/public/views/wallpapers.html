@@ -1,0 +1,774 @@
+<div class="row w-100 m-1">
+    <h4>Wallpapers</h4>
+    <ul class="list-inline ml-auto">
+        <li class="list-inline-item">
+            <a href="#add-wallpaper" class="btn btn-success" onclick="switchView('views/add-wallpaper.html')">Add a
+                wallpaper</a>
+        </li>
+    </ul>
+</div>
+<div class="bs-example">
+    <div class="accordion" id="accordion">
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalHeader"></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <input type="hidden" id="mainCategory">
+                <input type="hidden" id="subCategory">
+                <input type="hidden" id="wallpaperKey">
+                <input type="hidden" id="itemToBeEdited">
+                <input type="hidden" id="extraParams">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" onclick="modalSaveChanges();" class="btn btn-primary" id="saveChangesBtn">Save
+                    changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="js/jquery.multi-select.js" type="text/javascript"></script>
+<script src="js/croppie.js"></script>
+<script>
+    var secectedCategories = [];
+    $(document).ready(function () {
+        loadTable();
+        $('#editModal').on('hidden.bs.modal', function () {
+            $('#saveChangesBtn').removeClass("disabled");
+            $('#saveChangesBtn').text("Save changes");
+            secectedCategories.length = 0;
+        });
+    });
+
+    function loadTable() {
+        var mainCategoriesRef = firebase.database().ref("Categories/Main-Categories");
+        mainCategoriesRef.on("value", function (mainCategories) {
+            if (mainCategories.exists()) {
+                var mainCategoriesHTML = '';
+                var trID = 0;
+                mainCategories.forEach(function (mainCategory) {
+                    mainCategoriesHTML += '<div class="card mb-2">';
+                    mainCategoriesHTML += '<div class="card-header" id="heading' + trID + '">';
+                    mainCategoriesHTML += '<div class="row w-100 m-1 pr-5">';
+                    mainCategoriesHTML +=
+                        '<button type="button" class="btn btn-link" data-toggle="collapse" data-target="#collapse' +
+                        trID + '">' + mainCategory.val().displayName + '</button>';
+                    mainCategoriesHTML += '<ul class="list-inline ml-auto">';
+                    mainCategoriesHTML += '<li id="main-' + trID + '-subCount"></li>';
+                    mainCategoriesHTML += '</ul>';
+                    mainCategoriesHTML += '</div>';
+                    mainCategoriesHTML += '</div>';
+                    mainCategoriesHTML += '<div id="collapse' + trID +
+                        '" class="collapse" aria-labelledby="headingOne" data-parent="#accordionExample">';
+                    mainCategoriesHTML += '<div class="card-body">';
+                    mainCategoriesHTML += '<div class="row w-100" id="main-' + trID + '"></div>';
+                    mainCategoriesHTML += '</div>';
+                    mainCategoriesHTML += '</div>';
+                    mainCategoriesHTML += '</div>';
+                    loadSubCategories(mainCategory.key, "main-" + trID);
+                    trID++;
+                });
+                $("#accordion").html(mainCategoriesHTML);
+            }
+        });
+    }
+
+    function loadSubCategories(mainCategory, trID) {
+        var mCatSubName = mainCategory.replace(/ /g, '');
+        var subCategoriesRef = firebase.database().ref("Categories/Sub-Categories");
+        subCategoriesRef.orderByChild("displayName").on("value", function (subCategories) {
+            var subCategorieshtml = '';
+            var srID = 0;
+            if (subCategories.exists()) {
+                subCategories.forEach(function (subCategory) {
+                    if (mainCategory == subCategory.val().mainCategory) {
+                        subCategorieshtml += '<div class="card mb-2">';
+                        subCategorieshtml += '<div class="card-header" id="headingOne">';
+                        subCategorieshtml += '<div class="row m-0 pr-5">';
+                        subCategorieshtml +=
+                            '<button type="button" class="btn btn-link" data-toggle="collapse" data-target="#' +
+                            mCatSubName + '-sub' + srID + '">' + subCategory.val().displayName +
+                            '</button>';
+                        subCategorieshtml += '<ul class="list-inline ml-auto">';
+                        subCategorieshtml += '<li id="sub-' + trID + '-' + srID + '-subCount"></li>';
+                        subCategorieshtml += '</ul>';
+                        subCategorieshtml += '</div>';
+                        subCategorieshtml += '</div>';
+                        subCategorieshtml += '<div id="' + mCatSubName + '-sub' + srID +
+                            '" class="collapse" aria-labelledby="headingOne" data-parent="#accordionExample">';
+                        subCategorieshtml += '<div class="card-body">';
+                        subCategorieshtml += '<div class="row w-100" id="sub-' + srID + '">';
+
+                        subCategorieshtml += '<table class="table table-striped w-100">';
+                        subCategorieshtml += '<thead>';
+                        subCategorieshtml += '<tr class="d-flex">';
+                        subCategorieshtml += '<th class="col-3">Thumbnail</th>';
+                        subCategorieshtml += '<th class="col-3">Title</th>';
+                        subCategorieshtml += '<th class="col-3">Filters</th>';
+                        subCategorieshtml += '<th class="col-3">Action</th>';
+                        subCategorieshtml += '</tr>';
+                        subCategorieshtml += '</thead>';
+                        subCategorieshtml += '<tbody id="sub-' + trID + '-' + srID + '">';
+                        subCategorieshtml += '</tbody>';
+                        subCategorieshtml += '</table>';
+                        subCategorieshtml += '</div>';
+                        subCategorieshtml += '</div>';
+                        subCategorieshtml += '</div>';
+                        subCategorieshtml += '</div>';
+                        loadWallpapers(mainCategory, subCategory.key, "sub-" + trID + "-" + srID);
+                        srID++;
+                    }
+                });
+            }
+            $("#" + trID).after(subCategorieshtml);
+            $("#" + trID + "-subCount").html('<span class="badge badge-info"> Sub Categories: ' + srID +
+                '</span>');
+        });
+    }
+
+    function loadWallpapers(mainCategory, subCategory, srID) {
+        //if(subCategory != "OT Kings"){return;}
+        var wallpapersRef = firebase.database().ref("wallpapers").child(mainCategory).child(subCategory);
+        wallpapersRef.orderByChild("title").on("value", function (wallpapers) {
+            var wallpapershtml = '';
+            var wCnt = 0;
+            if (wallpapers.exists()) {
+                wallpapers.forEach(function (wallpaper) {
+                    var status = "Inactive";
+                    var statusColor = "danger";
+                    if (wallpaper.val().status) {
+                        status = "Active";
+                        statusColor = "success";
+                    }
+                    wallpapershtml += '<tr class="d-flex">';
+                    wallpapershtml += '<td class="col-3"><img src="' + wallpaper.val().url +
+                        '" class="img img-fluid" style="min-height:150px" onerror="this.onerror=null;this.src=\'imgs/no-image.png\';" /></td>';
+                    wallpapershtml += '<td class="col-3" align-middle"><strong>' + wallpaper.val()
+                        .title + '</strong><hr>' + wallpaper.val().desc + '</td>';
+                    wallpapershtml += '<td class="col-3">';
+                    wallpapershtml += "Position: <span class='badge badge-primary'>" + wallpaper.val()
+                        .position + "</span>";
+                    wallpapershtml += "<br>";
+                    wallpapershtml += "Status: <span class='badge badge-" + statusColor + "'>" +
+                        status + "</span>";
+                    wallpapershtml += "<hr>";
+                    wallpapershtml += "<strong>Reference</strong>";
+                    wallpapershtml += "<br>";
+                    wallpapershtml += "<br>";
+                    wallpapershtml += "Book: " + wallpaper.val().book;
+                    wallpapershtml += "<br>";
+                    wallpapershtml += "Chapter: " + wallpaper.val().chapter;
+                    wallpapershtml += "<br>";
+                    wallpapershtml += "From Verse: " + wallpaper.val().fromVerse;
+                    wallpapershtml += "<br>";
+                    wallpapershtml += "To Verse: " + wallpaper.val().toVerse;
+                    wallpapershtml += '</td>';
+                    wallpapershtml += '<td class="col-3">';
+                    wallpapershtml += '<div class="row w-100 m-0 pt-3">';
+                    wallpapershtml += '<div class="col-md-6 ">';
+                    wallpapershtml +=
+                        '<button type="button" class="btn btn-secondary btn-block btn-sm" onclick="moveCopyWallpaper(\'copy\',\'' +
+                        mainCategory + '\',\'' + subCategory + '\',\'' + wallpaper.key +
+                        '\');">Copy</button>';
+                    wallpapershtml += '</div>';
+                    wallpapershtml += '<div class="col-md-6">';
+                    wallpapershtml +=
+                        '<button type="button" class="btn btn-secondary btn-block btn-sm" onclick="moveCopyWallpaper(\'move\',\'' +
+                        mainCategory + '\',\'' + subCategory + '\',\'' + wallpaper.key +
+                        '\');">Move</button>';
+                    wallpapershtml += '</div>';
+                    wallpapershtml += '</div>';
+                    wallpapershtml += '<hr>';
+                    wallpapershtml +=
+                        '<button type="button" class="btn btn-success btn-block btn-sm"  onclick="editWallpaperName(\'' +
+                        mainCategory + '\',\'' + subCategory + '\',\'' + wallpaper.key + '\',\'' +
+                        wallpaper.val().title + '\',\'' + wallpaper.val().desc +
+                        '\');">Edit Name & Desc</button>';
+                    wallpapershtml +=
+                        "<button type='button' class='btn btn-warning btn-block btn-sm' onclick='editWallpaperReference(\"" +
+                        mainCategory + "\",\"" + subCategory + "\",\"" + wallpaper.key + "\",\"" +
+                        wallpaper.val().book + "\",\"" + wallpaper.val().chapter + "\",\"" + wallpaper
+                        .val().verse + "\");'>Edit Reference</button>";
+                    wallpapershtml +=
+                        "<button type='button' class='btn btn-primary btn-block btn-sm' onclick='editWallpaperNewImage(\"" +
+                        mainCategory + "\",\"" + subCategory + "\",\"" + wallpaper.key + "\",\"" +
+                        wallpaper.val().url + "\");'>Edit Image</button>";
+                    wallpapershtml +=
+                        "<button type='button' class='btn btn-info btn-block btn-sm' onclick='editWallpaperPosition(\"" +
+                        mainCategory + "\",\"" + subCategory + "\",\"" + wallpaper.key + "\",\"" +
+                        wallpaper.val().position + "\");' >Edit Position</button>";
+                    wallpapershtml +=
+                        "<button type='button' class='btn btn-secondary btn-block btn-sm' onclick='editWallpaperIsActive(\"" +
+                        mainCategory + "\",\"" + subCategory + "\",\"" + wallpaper.key + "\"," +
+                        wallpaper.val().status + ");' >Edit Status</button>";
+                    wallpapershtml +=
+                        '<button type="button" class="btn btn-danger btn-block btn-sm"  onclick="deleteWallpaper(\'' +
+                        mainCategory + '\',\'' + subCategory + '\',\'' + wallpaper.key + '\',\'' +
+                        wallpaper.val().title + '\',\'' + wallpaper.val().url +
+                        '\');" >Delete</button>';
+                    wallpapershtml += '</td>';
+                    wallpapershtml += '</tr>';
+                    wCnt++;
+                });
+            }
+            $("#" + srID).html(wallpapershtml);
+            $("#" + srID + "-subCount").html('<span class="badge badge-success"> Wallpapers: ' + wCnt +
+                '</span>');
+        });
+    }
+
+    function editWallpaperName(mainCategory, subCategory, wallpaperKey, currentName, currentDesc) {
+        $('#modalHeader').html('Edit Wallpaper Name');
+        $('#mainCategory').val(mainCategory);
+        $('#subCategory').val(subCategory);
+        $('#wallpaperKey').val(wallpaperKey);
+        $('#itemToBeEdited').val('editWallpaperName');
+        $('#modalBody').css({
+            'height': "200px"
+        });
+        $('#modalBody').html(
+            '<label for="modalInput" class="w-100">New Name: <input type="text" class="form-control" id="modalInputValue" value="' +
+            currentName +
+            '"></label><label for="desc" class="w-100">New Description<textarea id="desc" class="form-control w-100">' +
+            currentDesc + '</textarea></label>');
+        $('#editModal').modal('show');
+    }
+
+    function editWallpaperReference(mainCategory, subCategory, wallpaperKey, book, chapter, fromVerse, toVerse) {
+        $('#modalHeader').html('Edit Wallpaper Reference');
+        $('#mainCategory').val(mainCategory);
+        $('#subCategory').val(subCategory);
+        $('#wallpaperKey').val(wallpaperKey);
+        $('#itemToBeEdited').val('editWallpaperReference');
+        $('#modalBody').css({
+            'height': "300px"
+        });
+        $('#modalBody').html(
+            '<label for="bibleBooks" class="w-100">Select Bible Book: <select class="form-control" id="bibleBooks">' +
+            bibleBooksOptions() + '</select></label>');
+        $('#modalBody').append(
+            '<label for="chapter" class="w-100">Enter Chapter: <input type="number" class="form-control" id="chapter" value="' +
+            chapter + '"></label>');
+        $('#modalBody').append(
+            '<label for="fromVerse" class="w-100">From Verse: <input type="number" class="form-control" id="fromVerse" value="' +
+            fromVerse + '"></label>');
+        $('#modalBody').append(
+            '<label for="toVerse" class="w-100">To Verce: <input type="number" class="form-control" id="toVerse" value="' +
+            toVerse + '"></label>');
+        $('#editModal').modal('show');
+    }
+
+    function editWallpaperNewImage(mainCategory, subCategory, wallpaperKey, imageURL) {
+        $('#modalHeader').html('Edit Wallpaper Image');
+        $('#mainCategory').val(mainCategory);
+        $('#subCategory').val(subCategory);
+        $('#wallpaperKey').val(wallpaperKey);
+        $('#extraParams').val(imageURL);
+        $('#itemToBeEdited').val('editWallpaperNewImage');
+        $('#modalBody').css({
+            'height': "600px"
+        });
+        $('#modalBody').html(
+            '<div class="form-group"><label for="modalInput" class="w-100">New Image: <input type="file" class="form-control" id="modalInput"></label></div> <div id="croppie-view" class="mb-5 w-100" style="background-image:url(\'imgs/placeholder.png\');background-position: center; background-repeat: no-repeat;max-height:200px"></div>'
+        );
+        $('#editModal').modal('show');
+
+        $image_crop = $('#croppie-view').croppie({
+            viewport: {
+                width: 256,
+                height: 320,
+                type: 'square'
+            },
+            boundary: {
+                width: 400,
+                height: 400
+            },
+            showZoomer: true,
+            enableExif: true,
+            enableOrientation: true
+        });
+
+        $('#modalInput').on('change', function () {
+            if ($(this).get(0).files.length === 0) {
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (event) {
+                $image_crop.croppie('bind', {
+                    url: event.target.result
+                }).then(function () {
+
+                });
+            }
+            reader.readAsDataURL(this.files[0]);
+        });
+    }
+
+    function editWallpaperPosition(mainCategory, subCategory, wallpaperKey, currentValue) {
+        $('#modalHeader').html('Edit Wallpaper Position');
+        $('#mainCategory').val(mainCategory);
+        $('#subCategory').val(subCategory);
+        $('#wallpaperKey').val(wallpaperKey);
+        $('#itemToBeEdited').val('editWallpaperPosition');
+        $('#modalBody').css({
+            'height': "100px"
+        });
+        $('#modalBody').html(
+            '<label for="modalInput" class="w-100">New Value: <input type="number" class="form-control" id="modalInputValue" value="' +
+            currentValue + '"></label>');
+        $('#editModal').modal('show');
+    }
+
+    function editWallpaperIsActive(mainCategory, subCategory, wallpaperKey, currentStatus) {
+        var isChecked = "";
+        if (currentStatus) {
+            isChecked = "checked";
+        }
+        $('#modalHeader').html('Edit Wallpaper Status');
+        $('#mainCategory').val(mainCategory);
+        $('#subCategory').val(subCategory);
+        $('#wallpaperKey').val(wallpaperKey);
+        $('#itemToBeEdited').val('editWallpaperIsActive');
+        $('#modalBody').css({
+            'height': "100px"
+        });
+        $('#modalBody').html(
+            '<form><div class="form-group">Is Active: <input type="checkbox"  id="modalInputValue" s style="vertical-align:middle;" ' +
+            isChecked + '></div></form>');
+        $('#editModal').modal('show');
+    }
+
+    function deleteWallpaper(mainCategory, subCategory, key, title, imageURL) {
+        var answer = window.confirm("Are you sure you want to delete " + title + " wallpaper?")
+        if (answer) {
+            var storageRef = firebase.storage().refFromURL(imageURL);
+            storageRef.getDownloadURL()
+                .then(function () {
+                    storageRef.delete();
+                    firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(key)
+                        .remove();
+                })
+                .catch(function (error) {
+                    firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(key)
+                        .remove();
+                    console.log("file not found :" + error);
+                });
+        }
+    }
+
+    function moveCopyWallpaper(action, mainCategory, mSubCategory, key) {
+        $('#modalHeader').html(action + ' Wallpaper');
+        $('#mainCategory').val(mainCategory);
+        $('#subCategory').val(mSubCategory);
+        $('#wallpaperKey').val(key);
+        $('#extraParams').val(action);
+        $('#itemToBeEdited').val('moveCopyWallpaper');
+        $('#modalBody').css({
+            'height': "300px"
+        });
+        $('#modalBody').html(
+            '<label for="category" class="w-100">Select Sub Category: <select class="form-control disabled" id="category"></select></label>'
+        );
+        $('#editModal').modal('show');
+
+        $('#category').multiSelect({
+            afterSelect: function (values) {
+                secectedCategories.push(values[0]);
+            },
+            afterDeselect: function (values) {
+                var index = secectedCategories.indexOf(values[0]);
+                if (index > -1) {
+                    secectedCategories.splice(index, 1);
+                }
+            }
+        });
+
+        var subCatRef = firebase.database().ref("Categories/Sub-Categories").orderByChild('displayName');
+        subCatRef.on("value", function (subCategories) {
+            if (subCategories.exists()) {
+                var cnt = 0;
+                subCategories.forEach(function (subCategory) {
+                    if (subCategory.key != mSubCategory) {
+                        $('#category').multiSelect('addOption', {
+                            value: subCategory.key,
+                            text: subCategory.val().displayName,
+                            index: cnt,
+                            nested: null
+                        });
+                        cnt++;
+                    }
+                });
+                $('#category').removeClass("disabled");
+            }
+        });
+    }
+
+    // save changes
+    function modalSaveChanges() {
+        var mainCategory = $('#mainCategory').val();
+        var subCategory = $('#subCategory').val();
+        var wallpaperKey = $('#wallpaperKey').val();
+        var inputMethod = $('#itemToBeEdited').val();
+
+        switch (inputMethod) {
+            case "editWallpaperName":
+                var name = $('#modalInputValue').val();
+                var desc = $('#desc').val();
+                updateWallpaperName(mainCategory, subCategory, wallpaperKey, name, desc);
+                break;
+            case "editWallpaperPosition":
+                var inputValue = parseInt($('#modalInputValue').val())
+                if (inputValue == null || inputValue == undefined) {
+                    alert("Enter a value!");
+                } else {
+                    if (Number.isInteger(inputValue)) {
+                        updateWallpaperPosition(mainCategory, subCategory, wallpaperKey, inputValue);
+                    } else {
+                        alert("Only use numbers!");
+                    }
+                }
+                break;
+            case "editWallpaperIsActive":
+                var isChecked = $('#modalInputValue').is(":checked");
+                updateWallpaperStatus(mainCategory, subCategory, wallpaperKey, isChecked);
+                break;
+            case "editWallpaperNewImage":
+                $image_crop.croppie('result', {
+                    type: 'canvas',
+                    size: 'original'
+                }).then(function (response) {
+                    var extraParams = $('#extraParams').val();
+                    updateWallpaperImage(mainCategory, subCategory, wallpaperKey, extraParams, response);
+                });
+                break;
+            case "editWallpaperReference":
+                var bibleBooks = $('#bibleBooks').val();
+                var chapter = $('#chapter').val();
+                var fromVerse = $('#fromVerse').val();
+                var toVerse = $('#toVerse').val();
+                updateWallpaperReference(mainCategory, subCategory, wallpaperKey, bibleBooks, chapter, fromVerse,
+                    toVerse);
+                break;
+            case "moveCopyWallpaper":
+                var extraParams = $('#extraParams').val();
+                updateMoveCopyWallpaper(extraParams, mainCategory, subCategory, wallpaperKey, secectedCategories);
+                break;
+            default:
+        }
+    }
+
+    function updateWallpaperName(mainCategory, subCategory, wallpaperKey, name, mDesc) {
+        firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(wallpaperKey).update({
+            title: name,
+            desc: mDesc
+        }).then(function () {
+            $('#editModal').modal('hide');
+        }).catch(function (error) {
+            $('#editModal').modal('hide');
+            console.log("Remove failed: " + error.message);
+        });
+    }
+
+    function updateWallpaperPosition(mainCategory, subCategory, wallpaperKey, inputValue) {
+        firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(wallpaperKey).update({
+            position: inputValue
+        }).then(function () {
+            $('#editModal').modal('hide');
+        }).catch(function (error) {
+            $('#editModal').modal('hide');
+            console.log("Remove failed: " + error.message);
+        });
+    }
+
+    function updateWallpaperStatus(mainCategory, subCategory, wallpaperKey, isChecked) {
+        firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(wallpaperKey).update({
+            status: isChecked
+        }).then(function () {
+            $('#editModal').modal('hide');
+        }).catch(function (error) {
+            $('#editModal').modal('hide');
+            console.log("Remove failed: " + error.message);
+        });
+    }
+
+    function updateWallpaperReference(mainCategory, subCategory, wallpaperKey, bibleBooks, mChapter, mFromVerse,
+        mToVerse) {
+        firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(wallpaperKey).update({
+            book: bibleBooks,
+            chapter: mChapter,
+            fromVerse: mFromVerse,
+            toVerse: mToVerse
+        }).then(function () {
+            $('#editModal').modal('hide');
+        }).catch(function (error) {
+            $('#editModal').modal('hide');
+            console.log("Remove failed: " + error.message);
+        });
+    }
+
+    function updateWallpaperImage(mainCategory, subCategory, wallpaperKey, imageUrl, image) {
+        var storageRef = firebase.storage().refFromURL(imageUrl);
+        storageRef.getDownloadURL()
+            .then(function () {
+                uploadReplaceImage(mainCategory, subCategory, wallpaperKey, imageUrl, image, storageRef)
+            })
+            .catch(function (error) {
+                var imagename = new Date().getTime();
+                storageRef = firebase.storage().ref(subCategory.replace(/ /g, '') + "/" + imagename + ".png");
+                uploadReplaceImage(mainCategory, subCategory, wallpaperKey, imageUrl, image, storageRef);
+            });
+    }
+
+    function uploadReplaceImage(mainCategory, subCategory, wallpaperKey, imageUrl, image, storageRef) {
+        var uploadTask = storageRef.putString(image, 'data_url', {
+            contentType: 'image/png'
+        });
+        uploadTask.on("state_changed",
+            function complete() {
+                uploadTask.snapshot.ref.getDownloadURL().then(function (downloadURL) {
+                    var database = firebase.database()
+                        .ref("wallpapers")
+                        .child(mainCategory)
+                        .child(subCategory)
+                        .child(wallpaperKey)
+                        .update({
+                            url: downloadURL
+                        });
+                    $('#editModal').modal('hide');
+                });
+            }
+        );
+    }
+
+    function updateMoveCopyWallpaper(extraParams, mainCategory, subCategory, wallpaperKey, secectedCategories) {
+        $('#saveChangesBtn').addClass("disabled");
+        $('#saveChangesBtn').text("Please Wait...");
+        var currentCatRef = firebase.database().ref("wallpapers").child(mainCategory).child(subCategory).child(
+            wallpaperKey);
+        currentCatRef.on("value", function (currentCatData) {
+            var countTimes = 0;
+            fetch(currentCatData.val().url).then(htmlReturn => {
+
+                let fileArray = new Uint8Array();
+                const reader = htmlReturn.body.getReader();
+                reader.read().then(function appendStreamChunk({
+                    done,
+                    value
+                }) {
+                    if (value) {
+                        fileArray = mergeTypedArrays(fileArray, value);
+                    }
+                    if (done) {
+                        secectedCategories.forEach(function (selectedCat) {
+
+
+                            var shortCat = selectedCat.replace(/\s/g, '');
+                            var imagename = new Date().getTime() + ".png";
+                            var imageRef = firebase.storage().ref(shortCat).child(
+                                imagename);
+                            var uploadTask = imageRef.put(fileArray, {
+                                    contentType: 'image/png'
+                                })
+                                .then(snapshot => {
+                                    snapshot.ref.getDownloadURL().then(function (
+                                        downloadURL) {
+                                        var selectedCatMainRef = firebase
+                                            .database().ref(
+                                                "Categories/Sub-Categories")
+                                            .child(selectedCat);
+                                        selectedCatMainRef.on("value",
+                                            function (selectedCatMain) {
+                                                var newCatRef = firebase
+                                                    .database().ref(
+                                                        "wallpapers")
+                                                    .child(
+                                                        selectedCatMain
+                                                        .val()
+                                                        .mainCategory)
+                                                    .child(selectedCat);
+                                                var setKey = newCatRef
+                                                    .push().key;
+                                                var data = {
+                                                    "url": downloadURL ||
+                                                        '#',
+                                                    "title": currentCatData
+                                                        .val()
+                                                        .title ||
+                                                        'No Title',
+                                                    "desc": currentCatData
+                                                        .val()
+                                                        .desc ||
+                                                        'No Description',
+                                                    "book": currentCatData
+                                                        .val()
+                                                        .book ||
+                                                        'Genesis',
+                                                    "chapter": currentCatData
+                                                        .val()
+                                                        .chapter ||
+                                                        '1',
+                                                    "fromVerse": currentCatData
+                                                        .val()
+                                                        .fromVerse ||
+                                                        '1',
+                                                    "toVerse": currentCatData
+                                                        .val()
+                                                        .toVerse ||
+                                                        '1',
+                                                    "isNew": true,
+                                                    "status": true
+                                                };
+                                                newCatRef.child(setKey)
+                                                    .set(data);
+                                                secectedCategories
+                                                    .length = 0;
+                                                $('#editModal').modal(
+                                                    'hide');
+                                                if (extraParams ==
+                                                    "move") {
+                                                    currentCatRef
+                                                        .remove();
+                                                }
+                                            });
+                                    });
+                                });
+                        });
+                    } else {
+                        return reader.read().then(appendStreamChunk);
+                    }
+                });
+            })
+        });
+    }
+
+    function mergeTypedArrays(a, b) {
+        if (!a && !b) throw 'Please specify valid arguments for parameters a and b.';
+        if (!b || b.length === 0) return a;
+        if (!a || a.length === 0) return b;
+        if (Object.prototype.toString.call(a) !== Object.prototype.toString.call(b))
+            throw 'The types of the two arguments passed for parameters a and b do not match.';
+
+        var c = new a.constructor(a.length + b.length);
+        c.set(a);
+        c.set(b, a.length);
+
+        return c;
+    }
+
+    function base64ToBuffer(base64) {
+        var binstr = atob(base64);
+        var buf = new Uint8Array(binstr.length);
+        Array.prototype.forEach.call(binstr, function (ch, i) {
+            buf[i] = ch.charCodeAt(0);
+        });
+        return buf;
+    }
+
+    function bibleBooksOptions() {
+        var options = '<option value=""></option>';
+        options += '<optgroup label="Old Testament">';
+        options += '<option value="Genesis">Genesis</option>';
+        options += '<option value="Exodus">Exodus</option>';
+        options += '<option value="Leviticus">Leviticus</option>';
+        options += '<option value="Numbers">Numbers</option>';
+        options += '<option value="Deuteronomy">Deuteronomy</option>';
+        options += '<option value="Joshua">Joshua</option>';
+        options += '<option value="Judges">Judges</option>';
+        options += '<option value="Ruth">Ruth</option>';
+        options += '<option value="1 Samuel">1 Samuel</option>';
+        options += '<option value="2 Samuel">2 Samuel</option>';
+        options += '<option value="1 Kings">1 Kings</option>';
+        options += '<option value="2 Kings">2 Kings</option>';
+        options += '<option value="1 Chronicles">1 Chronicles</option>';
+        options += '<option value="2 Chronicles">2 Chronicles</option>';
+        options += '<option value="Ezra">Ezra</option>';
+        options += '<option value="Nehemiah">Nehemiah</option>';
+        options += '<option value="Esther">Esther</option>';
+        options += '<option value="Job">Job</option>';
+        options += '<option value="Psalms">Psalms</option>';
+        options += '<option value="Proverbs">Proverbs</option>';
+        options += '<option value="Ecclesiastes">Ecclesiastes</option>';
+        options += '<option value="The Song of Solomon">The Song of Solomon</option>';
+        options += '<option value="Isaiah">Isaiah</option>';
+        options += '<option value="Jeremiah">Jeremiah</option>';
+        options += '<option value="Lamentations">Lamentations</option>';
+        options += '<option value="Ezekiel">Ezekiel</option>';
+        options += '<option value="Daniel">Daniel</option>';
+        options += '<option value="Hosea">Hosea</option>';
+        options += '<option value="Joel">Joel</option>';
+        options += '<option value="Amos">Amos</option>';
+        options += '<option value="Obadiah">Obadiah</option>';
+        options += '<option value="Jonah">Jonah</option>';
+        options += '<option value="Micah">Micah</option>';
+        options += '<option value="Nahum">Nahum</option>';
+        options += '<option value="Habakkuk">Habakkuk</option>';
+        options += '<option value="Zephaniah">Zephaniah</option>';
+        options += '<option value="Haggai">Haggai</option>';
+        options += '<option value="Zechariah">Zechariah</option>';
+        options += '<option value="Malachi">Malachi</option>';
+        options += '</optgroup>';
+
+        options += '<optgroup label="New Testament">';
+        options += '<option value="Matthew">Matthew</option>';
+        options += '<option value="Mark">Mark</option>';
+        options += '<option value="Luke">Luke</option>';
+        options += '<option value="John">John</option>';
+        options += '<option value="Acts of the Apostles">Acts of the Apostles</option>';
+        options += '<option value="Romans">Romans</option>';
+        options += '<option value="1 Corinthians">1 Corinthians</option>';
+        options += '<option value="2 Corinthians">2 Corinthians</option>';
+        options += '<option value="Galatians">Galatians</option>';
+        options += '<option value="Ephesians">Ephesians</option>';
+        options += '<option value="Philippians">Philippians</option>';
+        options += '<option value="Colossians">Colossians</option>';
+        options += '<option value="1 Thessalonians">1 Thessalonians</option>';
+        options += '<option value="2 Thessalonians">2 Thessalonians</option>';
+        options += '<option value="1 Timothy">1 Timothy</option>';
+        options += '<option value="2 Timothy">2 Timothy</option>';
+        options += '<option value="Titus">Titus</option>';
+        options += '<option value="Philemon">Philemon</option>';
+        options += '<option value="Hebrews">Hebrews</option>';
+        options += '<option value="James">James</option>';
+        options += '<option value="1 Peter">1 Peter</option>';
+        options += '<option value="2 Peter">2 Peter</option>';
+        options += '<option value="1 John">1 John</option>';
+        options += '<option value="2 John">2 John</option>';
+        options += '<option value="3 John">3 John</option>';
+        options += '<option value="Jude">Jude</option>';
+        options += '<option value="Revelation">Revelation</option>';
+        options += '</optgroup>';
+
+        options += '<optgroup label="Apocrypha Books">';
+        options += '<option value="1 Esdras">1 Esdras</option>';
+        options += '<option value="2 Esdras">2 Esdras</option>';
+        options += '<option value="Tobit">Tobit</option>';
+        options += '<option value="Judith">Judith</option>';
+        options += '<option value="Additions to Esther">Additions to Esther</option>';
+        options += '<option value="Wisdom of Solomon">Wisdom of Solomon</option>';
+        options += '<option value="Ecclesiasticus">Ecclesiasticus</option>';
+        options += '<option value="Baruch">Baruch</option>';
+        options += '<option value="Letter of Jeremiah">Letter of Jeremiah</option>';
+        options += '<option value="Prayer of Azariah">Prayer of Azariah</option>';
+        options += '<option value="Susanna">Susanna</option>';
+        options += '<option value="Bel and the Dragon">Bel and the Dragon</option>';
+        options += '<option value="Prayer of Manasseh">Prayer of Manasseh</option>';
+        options += '<option value="1 Maccabees">1 Maccabees</option>';
+        options += '<option value="2 Maccabees">2 Maccabees</option>';
+        options += '</optgroup>';
+
+        return options;
+    }
+
+</script>

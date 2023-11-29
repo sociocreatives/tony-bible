@@ -1,0 +1,378 @@
+<h2>Wallpapers</h2>
+<hr />
+<div class="row">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <h4>Add a Wallpaper</h4>
+            </div>
+            <div class="card-body">
+                <div class="w-100" id="result"></div>
+                <form id="image-form">
+                    <div class="form-group">
+                        <label for="wallpaper">Wallpaper</label>
+                        <input type="file" class="form-control" id="wallpaper" />
+        
+                        <div class="invalid-feedback">
+                            Please choose a valid image
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="title">Title</label>
+                        <input type="text" class="form-control" id="title">
+                        <div class="invalid-feedback">
+                            Please enter title 
+                        </div>
+                    </div>        
+                    <div class="form-group">
+                        <label for="desc">Description</label>
+                        <textarea class="form-control" id="desc"></textarea>
+                        <div class="invalid-feedback">
+                            Please enter description 
+                        </div>                    
+                    </div>        
+                    <div class="form-group">
+                        <label for="category">Select Sub Category</label>
+                        <select id="category" class="form-control" multiple disabled>
+                        </select>
+                        <div class="invalid-feedback">
+                            Please enter Category 
+                        </div> 
+                    </div> 
+                    <div class="form-group">
+                        <label for="book">Select Bible Book Reference</label>
+                        <select id="book" class="form-control"></select>
+                        <div class="invalid-feedback">
+                            Please enter Category 
+                        </div> 
+                    </div> 
+                    <div class="form-group">
+                        <label for="chapter">Enter Verse</label>
+                        <input type="number" id="chapter" class="form-control"></select>
+                        <div class="invalid-feedback">
+                            Please enter Category 
+                        </div> 
+                    </div>
+                    <div class="form-group">
+                        <label for="fromVerse">Enter From Verse</label>
+                        <input type="number" id="fromVerse" class="form-control"></select>
+                        <div class="invalid-feedback">
+                            Please enter Category 
+                        </div> 
+                    </div> 
+                    <div class="form-group">
+                        <label for="toVerse">Enter To Verse</label>
+                        <input type="number" id="toVerse" class="form-control"></select>
+                        <div class="invalid-feedback">
+                            Please enter Category 
+                        </div> 
+                    </div> 
+                    <div class="form-group">
+                        <div class="progress">
+                            <div class="progress-bar" id="progress" style="width:0%">0%</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" id="btn-save" class="btn btn-primary">Save Wallpaper</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                    <div id="image_demo" style="background-image:url('imgs/placeholder.png');background-position: center; background-repeat: no-repeat;max-height:450px"></div>
+            </div>
+        </div>        
+    </div>
+</div>
+<script src="js/jquery.multi-select.js" type="text/javascript"></script>
+<script src="js/croppie.js"></script>
+<script>
+    var secectedCategories = [];
+    $image_crop = $('#image_demo').croppie({
+        viewport: {
+            width:256,
+            height:320,
+            type:'square'
+        },
+        boundary:{
+            width:400,
+            height:400
+        },
+        showZoomer: true,
+        enableExif: true,
+        enableOrientation: true
+    });
+
+    $('#category').multiSelect({
+        afterSelect: function(values){
+            secectedCategories.push(values[0]);
+        },
+        afterDeselect: function(values){
+            var index = secectedCategories.indexOf(values[0]);
+            if (index > -1) {
+                secectedCategories.splice(index, 1);
+            }
+        }
+    });
+
+    $('#book').append(bibleBooksOptions());
+
+    $('#wallpaper').on('change', function(){
+        if($(this).get(0).files.length === 0){
+            return;
+        }
+        var concatName = this.files[0]['name'].split(".");
+        var fileName = "";
+        
+        for(var x=0;x<concatName.length;x++){
+            var last = concatName.length -1;
+            if(x<last){
+                fileName += concatName[x];
+            }            
+        }
+        var reader = new FileReader();
+        reader.onload = function (event) {
+            $image_crop.croppie('bind', {
+                url: event.target.result
+            }).then(function(){
+                $("#desc").val(fileName);
+            });
+        }
+        reader.readAsDataURL(this.files[0]);
+    });
+
+    var dbCategories = firebase.database().ref("Categories/Sub-Categories");
+    dbCategories.once("value").then(function(categories){
+        $("#category").prop('disabled',false);
+        $("#category").append("<option value=''></option>");
+        var cnt = 0;     
+        categories.forEach(function(category){
+            $('#category').multiSelect('addOption', { value: category.key, text: category.val().displayName, index: cnt, nested: null });
+            cnt++;  
+        });
+    });    
+
+    var validImageTypes = ["image/gif", "image/jpeg", "image/png"];
+
+    $("#btn-save").click(function(){
+        saveBtnStatus(false);
+        $("#title").removeClass("is-invalid");
+        $("#desc").removeClass("is-invalid");
+        $("#wallpaper").removeClass("is-invalid");
+
+        var title = $("#title").val();
+        var desc = $("#desc").val(); 
+        var wallpaper = $("#wallpaper").prop("files")[0];
+        var category = $("#category").val(); 
+        var book = $("#book").val(); 
+        var chapter = $("#chapter").val(); 
+        var fromVerse = $("#fromVerse").val(); 
+        var toVerse = $("#toVerse").val(); 
+
+        if(!wallpaper){
+            $("#wallpaper").addClass("is-invalid");
+            saveBtnStatus(true);
+            return; 
+        }
+
+        if($.inArray(wallpaper["type"], validImageTypes)<0){
+            $("#wallpaper").addClass("is-invalid");
+            saveBtnStatus(true);
+            return; 
+        }
+
+        if(!title){
+            $("#title").addClass("is-invalid");
+            saveBtnStatus(true);
+            return; 
+        }
+
+        if(!desc){
+            $("#desc").addClass("is-invalid");
+            saveBtnStatus(true);
+            return; 
+        }        
+
+        if(secectedCategories.length<0){
+            $("#category").addClass("is-invalid");
+            saveBtnStatus(true);
+            return; 
+        }
+
+        for(var i=0;i<secectedCategories.length;i++){
+            
+            var selectedCats = secectedCategories[i];        
+            $image_crop.croppie('result', {
+                type: 'canvas',
+                size: 'original'
+            }).then(function(response){
+                var imagename = new Date().getTime(); 
+
+                var storageRef = firebase.storage().ref(selectedCats.replace(/ /g,'') + "/" + imagename + ".png");
+
+                var uploadTask = storageRef.putString(response, 'data_url', {contentType:'image/png'});
+
+                uploadTask.on("state_changed", 
+                    function progress(snapshot){
+                        var percentage = (snapshot.bytesTransferred / snapshot.totalBytes) * 100; 
+                        $("#progress").html(Math.round(percentage)+"%");
+                        $("#progress").attr("style", "width: "+percentage + "%");
+                    }, 
+
+                    function error(err){
+                        saveBtnStatus(true);
+                    },
+
+                    function complete(){
+                        uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+                            var subCatRef = firebase.database().ref("Categories/Sub-Categories").child(selectedCats);
+                            subCatRef.on("value", function(subCats){
+                                if(subCats.exists()){
+                                    var mainCat = subCats.val().mainCategory;
+                                    var database = firebase.database().ref("wallpapers").child(mainCat).child(selectedCats);
+                                    var imageid = database.push().key;
+                                    var image = {
+                                        "url": downloadURL, 
+                                        "title": title, 
+                                        "desc": desc, 
+                                        "book": book, 
+                                        "chapter": chapter, 
+                                        "fromVerse": fromVerse, 
+                                        "toVerse": toVerse,
+                                        "isNew" : true,
+                                        "status": true
+                                    };
+                                    database.child(imageid).set(image, function(err){
+                                        $('#image_demo').removeClass('ready');                     
+                                        resetForm();
+                                        saveBtnStatus(true);
+                                    });
+                                }else{
+                                   console.log("Selected Sub-Category not found in Sub-Category List!"); 
+                                }
+                            });
+                        }); 
+                    }
+                );
+            });
+
+        }
+
+    });
+    
+    function resetForm(){
+        $("#image-form")[0].reset(); 
+        $("#img-wallpaper").attr("src", "imgs/placeholder.png");;
+        $("#progress").html("Completed");
+        $("#result").attr("class", "alert alert-success");
+        $("#result").html("Image Uploaded Successfully");
+    }
+
+    function saveBtnStatus(status){
+        if(status==true){
+            $('#btn-save').removeClass('disabled');
+            $('#btn-save').text('Save Wallpaper');
+        }else{
+            $('#btn-save').addClass('disabled');
+            $('#btn-save').text('Please Wait...');
+        }
+    }
+    function bibleBooksOptions(){
+        var options = '<option value=""></option>';
+        options += '<optgroup label="Old Testament">';
+        options += '<option value="Genesis">Genesis</option>';
+        options += '<option value="Exodus">Exodus</option>';
+        options += '<option value="Leviticus">Leviticus</option>';
+        options += '<option value="Numbers">Numbers</option>';
+        options += '<option value="Deuteronomy">Deuteronomy</option>';
+        options += '<option value="Joshua">Joshua</option>';
+        options += '<option value="Judges">Judges</option>';
+        options += '<option value="Ruth">Ruth</option>';
+        options += '<option value="1 Samuel">1 Samuel</option>';
+        options += '<option value="2 Samuel">2 Samuel</option>';
+        options += '<option value="1 Kings">1 Kings</option>';
+        options += '<option value="2 Kings">2 Kings</option>';
+        options += '<option value="1 Chronicles">1 Chronicles</option>';
+        options += '<option value="2 Chronicles">2 Chronicles</option>';
+        options += '<option value="Ezra">Ezra</option>';
+        options += '<option value="Nehemiah">Nehemiah</option>';
+        options += '<option value="Esther">Esther</option>';
+        options += '<option value="Job">Job</option>';
+        options += '<option value="Psalms">Psalms</option>';
+        options += '<option value="Proverbs">Proverbs</option>';
+        options += '<option value="Ecclesiastes">Ecclesiastes</option>';
+        options += '<option value="The Song of Solomon">The Song of Solomon</option>';
+        options += '<option value="Isaiah">Isaiah</option>';
+        options += '<option value="Jeremiah">Jeremiah</option>';
+        options += '<option value="Lamentations">Lamentations</option>';
+        options += '<option value="Ezekiel">Ezekiel</option>';
+        options += '<option value="Daniel">Daniel</option>';
+        options += '<option value="Hosea">Hosea</option>';
+        options += '<option value="Joel">Joel</option>';
+        options += '<option value="Amos">Amos</option>';
+        options += '<option value="Obadiah">Obadiah</option>';
+        options += '<option value="Jonah">Jonah</option>';
+        options += '<option value="Micah">Micah</option>';
+        options += '<option value="Nahum">Nahum</option>';
+        options += '<option value="Habakkuk">Habakkuk</option>';
+        options += '<option value="Zephaniah">Zephaniah</option>';
+        options += '<option value="Haggai">Haggai</option>';
+        options += '<option value="Zechariah">Zechariah</option>';
+        options += '<option value="Malachi">Malachi</option>';
+        options += '</optgroup>';
+
+        options += '<optgroup label="New Testament">';
+        options += '<option value="Matthew">Matthew</option>';
+        options += '<option value="Mark">Mark</option>';
+        options += '<option value="Luke">Luke</option>';
+        options += '<option value="John">John</option>';
+        options += '<option value="Acts of the Apostles">Acts of the Apostles</option>';
+        options += '<option value="Romans">Romans</option>';
+        options += '<option value="1 Corinthians">1 Corinthians</option>';
+        options += '<option value="2 Corinthians">2 Corinthians</option>';
+        options += '<option value="Galatians">Galatians</option>';
+        options += '<option value="Ephesians">Ephesians</option>';
+        options += '<option value="Philippians">Philippians</option>';
+        options += '<option value="Colossians">Colossians</option>';
+        options += '<option value="1 Thessalonians">1 Thessalonians</option>';
+        options += '<option value="2 Thessalonians">2 Thessalonians</option>';
+        options += '<option value="1 Timothy">1 Timothy</option>';
+        options += '<option value="2 Timothy">2 Timothy</option>';
+        options += '<option value="Titus">Titus</option>';
+        options += '<option value="Philemon">Philemon</option>';
+        options += '<option value="Hebrews">Hebrews</option>';
+        options += '<option value="James">James</option>';
+        options += '<option value="1 Peter">1 Peter</option>';
+        options += '<option value="2 Peter">2 Peter</option>';
+        options += '<option value="1 John">1 John</option>';
+        options += '<option value="2 John">2 John</option>';
+        options += '<option value="3 John">3 John</option>';
+        options += '<option value="Jude">Jude</option>';
+        options += '<option value="Revelation">Revelation</option>';
+        options += '</optgroup>';
+
+        options += '<optgroup label="Apocrypha Books">';
+        options += '<option value="1 Esdras">1 Esdras</option>';
+        options += '<option value="2 Esdras">2 Esdras</option>';
+        options += '<option value="Tobit">Tobit</option>';
+        options += '<option value="Judith">Judith</option>';
+        options += '<option value="Additions to Esther">Additions to Esther</option>';
+        options += '<option value="Wisdom of Solomon">Wisdom of Solomon</option>';
+        options += '<option value="Ecclesiasticus">Ecclesiasticus</option>';
+        options += '<option value="Baruch">Baruch</option>';
+        options += '<option value="Letter of Jeremiah">Letter of Jeremiah</option>';
+        options += '<option value="Prayer of Azariah">Prayer of Azariah</option>';
+        options += '<option value="Susanna">Susanna</option>';
+        options += '<option value="Bel and the Dragon">Bel and the Dragon</option>';
+        options += '<option value="Prayer of Manasseh">Prayer of Manasseh</option>';
+        options += '<option value="1 Maccabees">1 Maccabees</option>';
+        options += '<option value="2 Maccabees">2 Maccabees</option>';
+        options += '</optgroup>';
+
+        return options;
+    }  
+</script>
